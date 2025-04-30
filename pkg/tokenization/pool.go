@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/neuralmagic/distributed-kv-cache/pkg/prefixstore"
+	"k8s.io/klog/v2"
+
+	"github.com/neuralmagic/llm-d-kv-cache-manager/pkg/prefixstore"
 
 	"k8s.io/client-go/util/workqueue"
 )
@@ -15,12 +17,14 @@ const defaultWorkers = 5
 // Config holds the configuration for the TokenizationPool.
 type Config struct {
 	WorkersCount int
+	*HFTokenizerConfig
 }
 
 // DefaultConfig returns a default configuration for the TokenizationPool.
 func DefaultConfig() *Config {
 	return &Config{
-		WorkersCount: defaultWorkers,
+		WorkersCount:      defaultWorkers,
+		HFTokenizerConfig: DefaultHFTokenizerConfig(),
 	}
 }
 
@@ -37,22 +41,27 @@ type Pool struct {
 	wg      sync.WaitGroup
 
 	indexer   prefixstore.Indexer
-	tokenizer Tokenizer // TODO: replace with map of active tokenizers
+	tokenizer Tokenizer
 }
 
 // NewTokenizationPool initializes a TokenizationPool with the specified number
 // of workers and the provided Indexer.
-func NewTokenizationPool(config *Config, store prefixstore.Indexer) *Pool {
+func NewTokenizationPool(config *Config, store prefixstore.Indexer) (*Pool, error) {
 	if config == nil {
 		config = DefaultConfig()
+	}
+
+	cachingTokenizer, err := NewCachedHFTokenizer(config.HFTokenizerConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create tokenizer: %w", err)
 	}
 
 	return &Pool{
 		workers:   config.WorkersCount,
 		queue:     workqueue.NewTypedRateLimitingQueue(workqueue.DefaultTypedControllerRateLimiter[Task]()),
 		indexer:   store,
-		tokenizer: NewHFTokenizer(),
-	}
+		tokenizer: cachingTokenizer,
+	}, nil
 }
 
 // AddTask enqueues a new tokenization task.
@@ -103,6 +112,7 @@ func (pool *Pool) workerLoop(_ int) {
 func (pool *Pool) processTask(task Task) error {
 	tokenIds, offsets, err := pool.tokenizer.Encode(task.Prompt, task.ModelName)
 	if err != nil {
+		klog.Error(err, " failed to encode token", "prompt", task.Prompt, "modelName", task.ModelName)
 		return err
 	}
 
