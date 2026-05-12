@@ -5,7 +5,7 @@
 #   - --mode=${VLLM_SIM_MODE} arg on Decode (vllm-d) only — controls simulator
 #     response mode (echo: returns input, random: returns random sentences)
 #   - --zmq-endpoint on Decode only — publishes KV cache events to the EPP
-#   - UDS tokenizer sidecar on all deployments (Decode, Prefill, Encode)
+#   - UDS tokenizer sidecar on all deployments (Decode, Prefill)
 #   - KV cache args on Decode for cache-aware scheduling tests
 #
 # Uses JSON patches (op: add) to INSERT into args arrays without replacing
@@ -83,11 +83,11 @@ patches:
       - name: uds-socket
         emptyDir: {}
 
-# --- Prefill and Encode deployments (vllm-p, vllm-e) ---
+# --- Prefill deployment (vllm-p) ---
 # No initContainers in base, so create the array
 - target:
     kind: Deployment
-    name: "vllm-[pe]"
+    name: vllm-p
   patch: |
     - op: add
       path: /spec/template/spec/initContainers
