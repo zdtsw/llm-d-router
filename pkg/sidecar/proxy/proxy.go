@@ -76,6 +76,11 @@ const (
 	ECExampleConnector       = constants.ECExampleConnector
 	DefaultPoolGroup         = constants.DefaultPoolGroup
 	LegacyPoolGroup          = constants.LegacyPoolGroup
+	// Mooncake transfer fields
+	requestFieldTransferID          = "transfer_id"
+	requestFieldRemoteBootstrapAddr = "remote_bootstrap_addr"
+	// KVConnectorMooncake enables the Mooncake P/D KV transfer protocol
+	KVConnectorMooncake = constants.KVConnectorMooncake
 )
 
 // APIType represents the type of OpenAI API being used.
@@ -159,6 +164,9 @@ type Config struct {
 	SecureServing bool
 	// CertPath is the path to TLS certificates for the sidecar server.
 	CertPath string
+
+	// MooncakeBootstrapPort is the port used to query the Mooncake bootstrap endpoint on prefill pods.
+	MooncakeBootstrapPort int
 
 	// EnableSSRFProtection enables SSRF protection using InferencePool allowlisting.
 	EnableSSRFProtection bool
@@ -355,6 +363,10 @@ func (s *Server) setKVConnector() {
 	case KVConnectorSGLang:
 		s.handlePDConnector = func(w http.ResponseWriter, r *http.Request, host string, _ APIType) {
 			s.handleSGLang(w, r, host)
+		}
+	case KVConnectorMooncake:
+		s.handlePDConnector = func(w http.ResponseWriter, r *http.Request, host string, _ APIType) {
+			s.handleMooncake(w, r, host)
 		}
 	case KVConnectorNIXLV2:
 		fallthrough

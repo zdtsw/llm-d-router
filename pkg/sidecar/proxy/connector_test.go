@@ -44,6 +44,7 @@ type sidecarTestInfo struct {
 	proxy          *Server
 }
 
+// SGLang and Mooncake excluded: async prefill requires Eventually and bootstrap server setup.
 var connectors = []string{KVConnectorSharedStorage, KVConnectorNIXLV2}
 
 var _ = Describe("Common Connector tests", func() {

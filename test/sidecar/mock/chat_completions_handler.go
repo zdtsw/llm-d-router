@@ -142,6 +142,78 @@ func (cc *ChatCompletionHandler) ServeHTTP(w http.ResponseWriter, r *http.Reques
 
 		}
 
+	case constants.KVConnectorMooncake:
+		switch cc.Role {
+		case RoleDecode:
+			kvTransferParams, ok := completionRequest["kv_transfer_params"]
+			if !ok || kvTransferParams == nil {
+				w.WriteHeader(http.StatusBadRequest)
+				w.Write([]byte("expected kv_transfer_params:{...}")) //nolint:all
+				return
+			}
+			kvTransferParamsMap, ok := kvTransferParams.(map[string]any)
+			if !ok {
+				w.WriteHeader(http.StatusBadRequest)
+				w.Write([]byte("expected kv_transfer_params:{...}")) //nolint:all
+				return
+			}
+			if v, ok := kvTransferParamsMap["do_remote_prefill"]; !ok || !v.(bool) {
+				w.WriteHeader(http.StatusBadRequest)
+				w.Write([]byte("expected do_remote_prefill:true")) //nolint:all
+				return
+			}
+			if v, ok := kvTransferParamsMap["do_remote_decode"]; !ok || v.(bool) {
+				w.WriteHeader(http.StatusBadRequest)
+				w.Write([]byte("expected do_remote_decode:false")) //nolint:all
+				return
+			}
+			if v, ok := kvTransferParamsMap["transfer_id"]; !ok || v == nil || v == "" {
+				w.WriteHeader(http.StatusBadRequest)
+				w.Write([]byte("expected transfer_id to be non-empty")) //nolint:all
+				return
+			}
+			if v, ok := kvTransferParamsMap["remote_bootstrap_addr"]; !ok || v == nil || v == "" {
+				w.WriteHeader(http.StatusBadRequest)
+				w.Write([]byte("expected remote_bootstrap_addr to be non-empty")) //nolint:all
+				return
+			}
+			if v, ok := kvTransferParamsMap["remote_engine_id"]; !ok || v == nil || v == "" {
+				w.WriteHeader(http.StatusBadRequest)
+				w.Write([]byte("expected remote_engine_id to be non-empty")) //nolint:all
+				return
+			}
+			rawResponse = `{"id":"chatcmpl-test","object":"chat.completion","choices":[],"usage":{"prompt_tokens":64,"completion_tokens":1,"total_tokens":65}}`
+		case RolePrefill:
+			kvTransferParams, ok := completionRequest["kv_transfer_params"]
+			if !ok || kvTransferParams == nil {
+				w.WriteHeader(http.StatusBadRequest)
+				w.Write([]byte("expected kv_transfer_params:{...}")) //nolint:all
+				return
+			}
+			kvTransferParamsMap, ok := kvTransferParams.(map[string]any)
+			if !ok {
+				w.WriteHeader(http.StatusBadRequest)
+				w.Write([]byte("expected kv_transfer_params:{...}")) //nolint:all
+				return
+			}
+			if v, ok := kvTransferParamsMap["do_remote_decode"]; !ok || !v.(bool) {
+				w.WriteHeader(http.StatusBadRequest)
+				w.Write([]byte("expected do_remote_decode:true")) //nolint:all
+				return
+			}
+			if v, ok := kvTransferParamsMap["do_remote_prefill"]; !ok || v.(bool) {
+				w.WriteHeader(http.StatusBadRequest)
+				w.Write([]byte("expected do_remote_prefill:false")) //nolint:all
+				return
+			}
+			if v, ok := kvTransferParamsMap["transfer_id"]; !ok || v == nil || v == "" {
+				w.WriteHeader(http.StatusBadRequest)
+				w.Write([]byte("expected transfer_id to be non-empty")) //nolint:all
+				return
+			}
+			rawResponse = `{}`
+		}
+
 	case constants.KVConnectorSharedStorage:
 		// Shared Storage protocol just returns empty response
 		rawResponse = `{}`
