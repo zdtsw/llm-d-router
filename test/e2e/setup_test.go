@@ -80,7 +80,7 @@ func createModelServersPDWithConnector(prefillReplicas, decodeReplicas int, conn
 	})
 }
 
-func createModelServersPDNixl(prefillReplicas, decodeReplicas int) []string {
+func createModelServersPDNixlV2(prefillReplicas, decodeReplicas int) []string {
 	return createModelServersPDWithConnector(prefillReplicas, decodeReplicas, "nixlv2")
 }
 
