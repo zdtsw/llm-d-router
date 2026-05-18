@@ -20,7 +20,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"maps"
 	"net/http"
 	"strings"
@@ -70,19 +69,8 @@ func (s *Server) dispatchDecode(w http.ResponseWriter, r *http.Request, completi
 // runChunkedDecode reads and parses the body, then delegates to
 // runChunkedDecodeFromMap.
 func (s *Server) runChunkedDecode(w http.ResponseWriter, r *http.Request) {
-	defer r.Body.Close() //nolint:errcheck
-	original, err := io.ReadAll(r.Body)
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(err.Error())) //nolint:errcheck
-		return
-	}
-
-	var completionRequest map[string]any
-	if err := json.Unmarshal(original, &completionRequest); err != nil {
-		if err := errorJSONInvalid(err, w); err != nil {
-			s.logger.Error(err, "failed to send error response to client")
-		}
+	original, completionRequest, ok := s.readJSONBody(r, w)
+	if !ok {
 		return
 	}
 

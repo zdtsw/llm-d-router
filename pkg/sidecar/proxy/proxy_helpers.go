@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -158,6 +159,27 @@ func (s *Server) createDecoderProxyHandler(decoderURL *url.URL, decoderInsecureS
 		}
 	}
 	return decoderProxy
+}
+
+// readJSONBody reads the request body, closes it, and unmarshals it into a
+// map. On failure it writes the appropriate HTTP error response and returns
+// ok=false so the caller can simply return.
+func (s *Server) readJSONBody(r *http.Request, w http.ResponseWriter) ([]byte, map[string]any, bool) {
+	defer r.Body.Close() //nolint:errcheck
+	raw, err := io.ReadAll(r.Body)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest) // TODO: check FastAPI error code when failing to read body
+		w.Write([]byte(err.Error()))         //nolint:errcheck
+		return nil, nil, false
+	}
+	var parsed map[string]any
+	if err := json.Unmarshal(raw, &parsed); err != nil {
+		if err := errorJSONInvalid(err, w); err != nil {
+			s.logger.Error(err, "failed to send error response to client")
+		}
+		return nil, nil, false
+	}
+	return raw, parsed, true
 }
 
 func cloneRequestWithBody(ctx context.Context, r *http.Request, body []byte) *http.Request {
