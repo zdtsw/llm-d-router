@@ -17,7 +17,6 @@ limitations under the License.
 package proxy
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -100,8 +99,8 @@ func (s *Server) handleSGLangConcurrentRequests(w http.ResponseWriter, r *http.R
 	// Create separate requests for prefill and decode
 	// Use context.WithoutCancel for prefillReq to prevent it from being aborted
 	// if the main HTTP handler (which serves decodeReq) finishes first.
-	prefillReq := cloneWithJSONBody(context.WithoutCancel(r.Context()), r, body)
-	decodeReq := cloneWithJSONBody(r.Context(), r, body)
+	prefillReq := cloneRequestWithBody(context.WithoutCancel(r.Context()), r, body)
+	decodeReq := cloneRequestWithBody(r.Context(), r, body)
 
 	prefillHandler, err := s.prefillerProxyHandler(prefillHost)
 	if err != nil {
@@ -176,13 +175,6 @@ func (s *Server) handleSGLangConcurrentRequests(w http.ResponseWriter, r *http.R
 			attribute.Bool("llm_d.pd_proxy.concurrent_pd", true),
 		)
 	}
-}
-
-func cloneWithJSONBody(ctx context.Context, r *http.Request, body []byte) *http.Request {
-	req := r.Clone(ctx)
-	req.Body = io.NopCloser(bytes.NewReader(body))
-	req.ContentLength = int64(len(body))
-	return req
 }
 
 func (s *Server) addSGLangBootstrapInfo(requestData map[string]interface{}, prefillHostPort string, roomID int64) map[string]interface{} {

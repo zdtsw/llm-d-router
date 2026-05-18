@@ -86,7 +86,7 @@ func (s *Server) runChunkedDecode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.runChunkedDecodeFromMap(w, cloneRequestWithBody(r, original), completionRequest)
+	s.runChunkedDecodeFromMap(w, cloneRequestWithBody(r.Context(), r, original), completionRequest)
 }
 
 // runChunkedDecodeFromMap executes chunked decode given an already-parsed completionRequest map.
@@ -181,7 +181,7 @@ func (s *Server) runChunkedDecodeFromMap(w http.ResponseWriter, r *http.Request,
 			"chunk", chunkIndex, "chunkBudget", chunkBudget, "totalTokensSoFar", totalTokens)
 
 		bw := &bufferedResponseWriter{}
-		s.decoderProxy.ServeHTTP(bw, cloneRequestWithBody(r.WithContext(ctx), chunkBody))
+		s.decoderProxy.ServeHTTP(bw, cloneRequestWithBody(ctx, r, chunkBody))
 
 		if isHTTPError(bw.statusCode) {
 			s.logger.Error(fmt.Errorf("chunk %d failed with status %d", chunkIndex, bw.statusCode),

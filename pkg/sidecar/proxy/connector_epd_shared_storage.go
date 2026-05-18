@@ -265,7 +265,7 @@ func (s *Server) handleEPD(w http.ResponseWriter, r *http.Request, prefillEndPoi
 	}
 
 	// Clone request with modified body and add request ID header
-	pdRequest := cloneRequestWithBody(r, modifiedBody)
+	pdRequest := cloneRequestWithBody(r.Context(), r, modifiedBody)
 	pdRequest.Header.Add(requestHeaderRequestID, requestID)
 
 	// If prefiller is configured, use P/D protocol; otherwise go directly to decoder

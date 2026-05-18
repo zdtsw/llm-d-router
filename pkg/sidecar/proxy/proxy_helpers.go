@@ -1,10 +1,12 @@
 package proxy
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -156,6 +158,13 @@ func (s *Server) createDecoderProxyHandler(decoderURL *url.URL, decoderInsecureS
 		}
 	}
 	return decoderProxy
+}
+
+func cloneRequestWithBody(ctx context.Context, r *http.Request, body []byte) *http.Request {
+	cloned := r.Clone(ctx)
+	cloned.Body = io.NopCloser(bytes.NewReader(body))
+	cloned.ContentLength = int64(len(body))
+	return cloned
 }
 
 // isHTTPError returns true if the status code indicates an error (not in the 2xx range).

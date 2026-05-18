@@ -159,7 +159,7 @@ func (s *Server) handleNIXLV2(w http.ResponseWriter, r *http.Request, prefillPod
 
 		if shouldFallbackToDecode(pw) {
 			s.logger.Info("fallback to decode", "request_id", uuidStr)
-			fallbackReq := cloneRequestWithBody(r, original)
+			fallbackReq := cloneRequestWithBody(r.Context(), r, original)
 			s.dispatchDecode(w, fallbackReq, originalRequest)
 		} else {
 			for key, values := range pw.Header() {
