@@ -33,6 +33,8 @@ import (
 	"github.com/llm-d/llm-d-router/pkg/telemetry"
 )
 
+const mooncakeBootstrapTimeout = 5 * time.Second // set to same value as the other timeout on vllm
+
 func (s *Server) handleMooncake(w http.ResponseWriter, r *http.Request, prefillPodHostPort string) {
 	s.logger.V(4).Info("running Mooncake protocol", "url", prefillPodHostPort)
 
@@ -53,7 +55,7 @@ func (s *Server) handleMooncake(w http.ResponseWriter, r *http.Request, prefillP
 	}
 
 	bootstrapAddr := s.getMooncakeBootstrapAddr(prefillPodHostPort)
-	engineID, err := s.getMooncakeEngineID(bootstrapAddr)
+	engineID, err := s.getMooncakeEngineID(r.Context(), prefillPodHostPort, bootstrapAddr)
 	if err != nil {
 		s.logger.Error(err, "failed to query mooncake engine ID", "bootstrap_addr", bootstrapAddr)
 		if err := errorBadGateway(err, w); err != nil {
@@ -126,8 +128,19 @@ func (s *Server) getMooncakeBootstrapAddr(prefillHostPort string) string {
 	return fmt.Sprintf("http://%s:%d", host, s.config.MooncakeBootstrapPort)
 }
 
-func (s *Server) getMooncakeEngineID(bootstrapAddr string) (string, error) {
-	resp, err := http.Get(bootstrapAddr + "/query") //nolint:gosec,noctx
+func (s *Server) getMooncakeEngineID(ctx context.Context, prefillHostPort, bootstrapAddr string) (string, error) {
+	if id, ok := s.mooncakeEngineIDs.Get(prefillHostPort); ok {
+		return id, nil
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, mooncakeBootstrapTimeout)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, bootstrapAddr+"/query", nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to get mooncake bootstrap request: %w", err)
+	}
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("failed to query bootstrap endpoint: %w", err)
 	}
@@ -149,6 +162,7 @@ func (s *Server) getMooncakeEngineID(bootstrapAddr string) (string, error) {
 	}
 	for _, entry := range data {
 		if id, ok := entry["engine_id"].(string); ok {
+			s.mooncakeEngineIDs.Add(prefillHostPort, id)
 			return id, nil
 		}
 	}

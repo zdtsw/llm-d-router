@@ -257,9 +257,7 @@ var _ = Describe("Mooncake Connector", func() {
 		Expect(err).ToNot(HaveOccurred())
 		Expect(rp.StatusCode).To(Equal(200))
 
-		time.Sleep(500 * time.Millisecond)
-
-		Expect(prefillFinished.Load()).To(BeTrue())
+		Eventually(prefillFinished.Load).Should(BeTrue()) // use default timeout from gomega
 		Expect(testInfo.prefillHandler.RequestCount.Load()).To(BeNumerically("==", 1))
 		Expect(testInfo.decodeHandler.RequestCount.Load()).To(BeNumerically("==", 1))
 

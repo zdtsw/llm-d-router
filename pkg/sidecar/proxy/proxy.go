@@ -69,18 +69,17 @@ const (
 	requestFieldBootstrapHost = "bootstrap_host"
 	requestFieldBootstrapPort = "bootstrap_port"
 	requestFieldBootstrapRoom = "bootstrap_room"
+	// Mooncake transfer fields
+	requestFieldTransferID          = "transfer_id"
+	requestFieldRemoteBootstrapAddr = "remote_bootstrap_addr"
 
 	KVConnectorNIXLV2        = constants.KVConnectorNIXLV2
 	KVConnectorSharedStorage = constants.KVConnectorSharedStorage
 	KVConnectorSGLang        = constants.KVConnectorSGLang
+	KVConnectorMooncake      = constants.KVConnectorMooncake
 	ECExampleConnector       = constants.ECExampleConnector
 	DefaultPoolGroup         = constants.DefaultPoolGroup
 	LegacyPoolGroup          = constants.LegacyPoolGroup
-	// Mooncake transfer fields
-	requestFieldTransferID          = "transfer_id"
-	requestFieldRemoteBootstrapAddr = "remote_bootstrap_addr"
-	// KVConnectorMooncake enables the Mooncake P/D KV transfer protocol
-	KVConnectorMooncake = constants.KVConnectorMooncake
 )
 
 // APIType represents the type of OpenAI API being used.
@@ -228,6 +227,7 @@ type Server struct {
 	decoderProxy        http.Handler                     // decoder proxy handler
 	prefillerProxies    *lru.Cache[string, http.Handler] // cached prefiller proxy handlers
 	encoderProxies      *lru.Cache[string, http.Handler] // cached encoder proxy handlers
+	mooncakeEngineIDs   *lru.Cache[string, string]       // cached mooncake engine_id per prefill host:port
 	dataParallelProxies map[string]http.Handler          // Proxies to other vLLM servers
 	forwardDataParallel bool                             // Use special Data Parallel work around
 
@@ -240,11 +240,13 @@ type Server struct {
 func NewProxy(config Config) *Server {
 	prefillerCache, _ := lru.New[string, http.Handler](1024) // nolint:errcheck
 	encoderCache, _ := lru.New[string, http.Handler](1024)   // nolint:errcheck
+	mooncakeEngineIDs, _ := lru.New[string, string](1024)    // nolint:errcheck
 
 	server := &Server{
 		readyCh:             make(chan struct{}),
 		prefillerProxies:    prefillerCache,
 		encoderProxies:      encoderCache,
+		mooncakeEngineIDs:   mooncakeEngineIDs,
 		prefillerURLPrefix:  "http://",
 		encoderURLPrefix:    "http://",
 		config:              config,
@@ -316,6 +318,7 @@ func (s *Server) Clone() *Server {
 		encoderURLPrefix:    s.encoderURLPrefix,
 		prefillerProxies:    s.prefillerProxies,
 		encoderProxies:      s.encoderProxies,
+		mooncakeEngineIDs:   s.mooncakeEngineIDs,
 		dataParallelProxies: s.dataParallelProxies,
 		forwardDataParallel: s.forwardDataParallel,
 		prefillSamplerFn:    s.prefillSamplerFn,
