@@ -117,6 +117,15 @@ func (b renderBackend) produce(ctx context.Context, body *fwkrh.InferenceRequest
 			return nil, fmt.Errorf("tokenization failed: %w", err)
 		}
 		return &fwkrh.TokenizedPrompt{PerPromptTokens: [][]uint32{tokenIDs}, MultiModalFeatures: convertMMFeaturesToUpstream(mmFeatures)}, nil
+	case body.Messages != nil:
+		tokenIDs, mmFeatures, err := b.tk.RenderChat(ctx, messagesPayload(body))
+		if err != nil {
+			return nil, fmt.Errorf("tokenization failed: %w", err)
+		}
+		return &fwkrh.TokenizedPrompt{
+			PerPromptTokens:    [][]uint32{tokenIDs},
+			MultiModalFeatures: convertMMFeaturesToUpstream(mmFeatures),
+		}, nil
 	case body.Generate != nil:
 		return &fwkrh.TokenizedPrompt{
 			PerPromptTokens:    [][]uint32{body.Generate.TokenIDs},
@@ -155,6 +164,21 @@ func chatPayload(body *fwkrh.InferenceRequestBody) fwkrh.RequestPayload {
 	}
 	rcr := ChatCompletionsToRenderChatRequest(body.ChatCompletions)
 	data, _ := json.Marshal(buildChatRenderRequest("", rcr))
+	var pm fwkrh.PayloadMap
+	_ = json.Unmarshal(data, &pm)
+	return pm
+}
+
+// messagesPayload returns the payload for an Anthropic Messages request.
+// HTTP requests carry a raw map payload and return early;
+// gRPC requests fall back to constructing an OpenAI-shaped PayloadMap from the typed struct.
+func messagesPayload(body *fwkrh.InferenceRequestBody) fwkrh.RequestPayload {
+	if body.Payload != nil {
+		if _, ok := body.Payload.AsMap(); ok {
+			return body.Payload
+		}
+	}
+	data, _ := json.Marshal(buildChatRenderRequest("", MessagesToRenderChatRequest(body.Messages)))
 	var pm fwkrh.PayloadMap
 	_ = json.Unmarshal(data, &pm)
 	return pm
