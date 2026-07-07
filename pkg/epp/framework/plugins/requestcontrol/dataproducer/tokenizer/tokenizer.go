@@ -347,6 +347,7 @@ func convertAnthropicContent(ac fwkrh.AnthropicContent) tokenizerTypes.Content {
 					ImageURL: tokenizerTypes.ImageBlock{URL: url},
 				})
 			}
+		}
 	}
 	return tokenizerTypes.Content{Structured: blocks}
 }
