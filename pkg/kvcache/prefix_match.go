@@ -712,13 +712,22 @@ func (a *prefixAccumulator) weightOf(tier string, ordinal uint32) (float64, bool
 			return a.weightCache[i].weight, a.weightCache[i].primary
 		}
 	}
+	w, primary := resolveTierWeight(a.weights, a.tailOnly, tier)
+	a.weightCache = append(a.weightCache, tierWeight{ordinal: ordinal, weight: w, primary: primary})
+	return w, primary
+}
+
+// resolveTierWeight returns the scoring weight of tier and whether the tier is
+// primary. A configured tier uses its configured weight. The speculative tier
+// scores speculativeTierWeight unless it is configured, and any other tier
+// scores unknownTierWeight.
+func resolveTierWeight(weights map[string]float64, tailOnly map[string]bool, tier string) (float64, bool) {
 	w, primary := unknownTierWeight, false
 	if tier == SpeculativeTier {
 		w, primary = speculativeTierWeight, true
 	}
-	if configured, ok := a.weights[tier]; ok {
-		w, primary = configured, !a.tailOnly[tier]
+	if configured, ok := weights[tier]; ok {
+		w, primary = configured, !tailOnly[tier]
 	}
-	a.weightCache = append(a.weightCache, tierWeight{ordinal: ordinal, weight: w, primary: primary})
 	return w, primary
 }

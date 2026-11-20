@@ -149,6 +149,9 @@ type PrefixCacheMatchInfo struct {
 	// per tier. Speculative index entries count under SpeculativeTierKey.
 	// Nil when the producer supplies no tier data.
 	cachedBlocksByTier map[string]int
+	// scoring weight of each tier in cachedBlocksByTier, as the producer applied
+	// it to matchBlocks. Nil when the producer supplies no tier data.
+	tierWeights map[string]float64
 	// optional multimodal block-match attribution
 	mm *MMMatchInfo
 }
@@ -228,6 +231,21 @@ func (p *PrefixCacheMatchInfo) CachedBlocksByTier() map[string]int {
 	return p.cachedBlocksByTier
 }
 
+// WithTierWeights sets the scoring weight of each tier in CachedBlocksByTier
+// and returns the receiver for chaining. The map may be shared between infos;
+// the caller must not mutate it after the call.
+func (p *PrefixCacheMatchInfo) WithTierWeights(tierWeights map[string]float64) *PrefixCacheMatchInfo {
+	p.tierWeights = tierWeights
+	return p
+}
+
+// TierWeights returns the scoring weight the producer applied to blocks held
+// in each tier. Nil means the producer supplies no tier data. Callers must not
+// mutate the map.
+func (p *PrefixCacheMatchInfo) TierWeights() map[string]float64 {
+	return p.tierWeights
+}
+
 func (p *PrefixCacheMatchInfo) Clone() fwkdl.Cloneable {
 	if p == nil {
 		return nil
@@ -239,6 +257,7 @@ func (p *PrefixCacheMatchInfo) Clone() fwkdl.Cloneable {
 		cachedBlockCount:          p.cachedBlockCount,
 		confirmedCachedBlockCount: p.confirmedCachedBlockCount,
 		cachedBlocksByTier:        maps.Clone(p.cachedBlocksByTier),
+		tierWeights:               maps.Clone(p.tierWeights),
 	}
 	if p.mm != nil {
 		clone.mm = ptr.To(*p.mm)

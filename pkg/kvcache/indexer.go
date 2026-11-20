@@ -112,6 +112,14 @@ func (k *Indexer) KVBlockIndex() kvblock.Index {
 	return k.kvBlockIndex
 }
 
+// TierWeight returns the weight the prefix matcher gives a block held in the
+// named device tier. Tier names are lower case, as reported in
+// PodMatch.BlocksByTier.
+func (k *Indexer) TierWeight(tier string) float64 {
+	w, _ := resolveTierWeight(k.tierScoring.weights, k.tierScoring.tailOnly, tier)
+	return w
+}
+
 // SetCacheFormats connects event metadata before request processing starts.
 func (k *Indexer) SetCacheFormats(formats *kvblock.CacheFormatCatalog) {
 	k.cacheFormats = formats

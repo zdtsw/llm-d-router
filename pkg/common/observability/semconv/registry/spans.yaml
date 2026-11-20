@@ -48,6 +48,18 @@ groups:
     attributes:
       - ref: llm_d.epp.picker.candidate_endpoints
         requirement_level: required
+      - ref: llm_d.epp.picker.prefix_cache.tier.cached_blocks
+        requirement_level:
+          conditionally_required: When the selected endpoint has prefix-cache tier data.
+      - ref: llm_d.epp.picker.prefix_cache.tier.weights
+        requirement_level:
+          conditionally_required: When the selected endpoint has prefix-cache tier data.
+      - ref: llm_d.epp.picker.prefix_cache.tiers
+        requirement_level:
+          conditionally_required: When the selected endpoint has prefix-cache tier data.
+      - ref: llm_d.epp.picker.selected_endpoint
+        requirement_level:
+          conditionally_required: When the selected endpoint has prefix-cache tier data.
       - ref: llm_d.epp.picker.top_endpoints
         requirement_level:
           conditionally_required: When at least one scored endpoint is available.

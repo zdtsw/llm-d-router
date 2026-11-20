@@ -58,6 +58,10 @@ Custom llm-d router trace attributes.
 | `llm_d.epp.pd.prefill_pod_port` | `string` | Selected prefill pod port. | `LLMDEPPPDPrefillPodPort` |
 | `llm_d.epp.pd.reason` | `string` | Prefill/decode disaggregation reason. | `LLMDEPPPDReason` |
 | `llm_d.epp.picker.candidate_endpoints` | `int` | Candidate endpoints entering the picker. | `LLMDEPPPickerCandidateEndpoints` |
+| `llm_d.epp.picker.prefix_cache.tier.cached_blocks` | `double[]` | The selected endpoint's cached blocks per prefix-cache tier. | `LLMDEPPPickerPrefixCacheTierCachedBlocks` |
+| `llm_d.epp.picker.prefix_cache.tier.weights` | `double[]` | The scoring weight of each prefix-cache tier, in the same order as the tiers attribute. | `LLMDEPPPickerPrefixCacheTierWeights` |
+| `llm_d.epp.picker.prefix_cache.tiers` | `string[]` | The prefix-cache tiers that hold cached blocks for the selected endpoint. | `LLMDEPPPickerPrefixCacheTiers` |
+| `llm_d.epp.picker.selected_endpoint` | `string` | The endpoint selected by the picker. | `LLMDEPPPickerSelectedEndpoint` |
 | `llm_d.epp.picker.top_endpoints` | `string[]` | The top scored endpoint names. | `LLMDEPPPickerTopEndpoints` |
 | `llm_d.epp.picker.top_scores` | `double[]` | The top scored endpoint values. | `LLMDEPPPickerTopScores` |
 | `llm_d.epp.producer.candidate_endpoints` | `int` | Producer candidate endpoints count. | `LLMDEPPProducerCandidateEndpoints` |
@@ -179,6 +183,10 @@ Selects an endpoint from the scored candidates. Kind: `internal`.
 | Attribute | Requirement |
 | --- | --- |
 | `llm_d.epp.picker.candidate_endpoints` | required |
+| `llm_d.epp.picker.prefix_cache.tier.cached_blocks` | When the selected endpoint has prefix-cache tier data. |
+| `llm_d.epp.picker.prefix_cache.tier.weights` | When the selected endpoint has prefix-cache tier data. |
+| `llm_d.epp.picker.prefix_cache.tiers` | When the selected endpoint has prefix-cache tier data. |
+| `llm_d.epp.picker.selected_endpoint` | When the selected endpoint has prefix-cache tier data. |
 | `llm_d.epp.picker.top_endpoints` | When at least one scored endpoint is available. |
 | `llm_d.epp.picker.top_scores` | When at least one scored endpoint is available. |
 

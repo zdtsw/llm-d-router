@@ -36,6 +36,8 @@ import (
 	"github.com/llm-d/llm-d-router/pkg/epp/datalayer"
 	"github.com/llm-d/llm-d-router/pkg/epp/framework/interface/plugin"
 	fwksched "github.com/llm-d/llm-d-router/pkg/epp/framework/interface/scheduling"
+	attrprefix "github.com/llm-d/llm-d-router/pkg/epp/framework/plugins/datalayer/attribute/prefix"
+	schedprefix "github.com/llm-d/llm-d-router/pkg/epp/framework/plugins/scheduling/scorer/prefix"
 	"github.com/llm-d/llm-d-router/pkg/epp/metrics"
 )
 
@@ -396,7 +398,8 @@ func (p *SchedulerProfile) runPickerPlugin(ctx context.Context, request *fwksche
 	)
 	defer span.End()
 
-	if span.IsRecording() {
+	tracingActive := span.IsRecording()
+	if tracingActive {
 		span.SetAttributes(semconv.LLMDEPPPickerCandidateEndpoints(len(scoredEndpoints)))
 		// The picker almost always returns a single target, so its count carries
 		// little signal. The score distribution across the strongest candidates is
@@ -428,9 +431,82 @@ func (p *SchedulerProfile) runPickerPlugin(ctx context.Context, request *fwksche
 		// selection. Pickers reorder and truncate the pointer slice, never the
 		// backing array, so storage still holds every scored candidate.
 		result.ScoredCandidates = storage
+		if tracingActive && len(result.TargetEndpoints) > 0 {
+			span.SetAttributes(p.prefixCacheSpanAttributes(result.TargetEndpoints[0])...)
+		}
 	}
 
 	return result
+}
+
+// prefixCacheSpanAttributes reports which cache tiers hold blocks for the
+// selected endpoint and the scoring weight of each tier. It returns nil unless
+// the profile has a prefix-cache scorer and the endpoint has tier data under
+// that scorer's key. The producer publishes tier data to every profile, so a
+// profile that does not score on it must not report it.
+func (p *SchedulerProfile) prefixCacheSpanAttributes(selected fwksched.Endpoint) []attribute.KeyValue {
+	info := p.prefixCacheMatchInfo(selected)
+	if info == nil {
+		return nil
+	}
+	cachedBlocksByTier := info.CachedBlocksByTier()
+	tiers := make([]string, 0, len(cachedBlocksByTier))
+	for tier, blocks := range cachedBlocksByTier {
+		if blocks > 0 {
+			tiers = append(tiers, tier)
+		}
+	}
+	if len(tiers) == 0 {
+		return nil
+	}
+	sort.Strings(tiers)
+
+	cachedBlocks := make([]float64, len(tiers))
+	weights := make([]float64, 0, len(tiers))
+	for i, tier := range tiers {
+		cachedBlocks[i] = float64(cachedBlocksByTier[tier])
+		if weight, ok := info.TierWeights()[tier]; ok {
+			weights = append(weights, weight)
+		}
+	}
+	attributes := []attribute.KeyValue{
+		semconv.LLMDEPPPickerSelectedEndpoint(selected.GetMetadata().ID.String()),
+		semconv.LLMDEPPPickerPrefixCacheTiers(tiers),
+		semconv.LLMDEPPPickerPrefixCacheTierCachedBlocks(cachedBlocks),
+	}
+	// The weights are paired with the tiers by position. Omit them when a tier
+	// has none, so a short array does not misalign the pairs.
+	if len(weights) == len(tiers) {
+		attributes = append(attributes, semconv.LLMDEPPPickerPrefixCacheTierWeights(weights))
+	}
+	return attributes
+}
+
+// prefixCacheMatchInfo returns the match info the profile's prefix-cache scorer
+// reads from the selected endpoint, or nil when there is none.
+func (p *SchedulerProfile) prefixCacheMatchInfo(selected fwksched.Endpoint) *attrprefix.PrefixCacheMatchInfo {
+	for _, scorer := range p.scorers {
+		if scorer.TypedName().Type != schedprefix.PrefixCacheScorerPluginType {
+			continue
+		}
+		consumer, ok := scorer.Scorer.(plugin.ConsumerPlugin)
+		if !ok {
+			continue
+		}
+		for key, dependency := range consumer.Consumes().Required {
+			if _, ok := dependency.(attrprefix.PrefixCacheMatchInfo); !ok {
+				continue
+			}
+			raw, ok := selected.Get(key)
+			if !ok {
+				continue
+			}
+			if info, ok := raw.(*attrprefix.PrefixCacheMatchInfo); ok {
+				return info
+			}
+		}
+	}
+	return nil
 }
 
 // topScoredEndpoints returns the names and weighted scores of the highest

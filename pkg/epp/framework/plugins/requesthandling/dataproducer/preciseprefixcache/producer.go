@@ -494,6 +494,16 @@ func (p *Producer) matchEndpointBlockKeys(ctx context.Context, span trace.Span,
 	// It covers at least 278,000 blocks at any one default tier weight.
 	const weightedScoreRoundOff = 1e-6
 
+	// Every result shares this map, so it is complete before the first result
+	// is built.
+	tierWeights := map[string]float64{}
+	for _, m := range matches {
+		for tier := range m.BlocksByTier {
+			if _, ok := tierWeights[tier]; !ok {
+				tierWeights[tier] = p.kvCacheIndexer.TierWeight(tier)
+			}
+		}
+	}
 	results := make([]endpointResult, 0, len(endpoints))
 	for _, candidate := range endpoints {
 		if err := ctx.Err(); err != nil {
@@ -520,7 +530,8 @@ func (p *Producer) matchEndpointBlockKeys(ctx context.Context, span trace.Span,
 		info := attrprefix.NewPrefixCacheMatchInfo(matchLen, totalBlocks, reportedBlockSize).
 			WithCachedBlockCount(match.MatchedBlocks * scale).
 			WithConfirmedCachedBlockCount(match.ConfirmedBlocks * scale).
-			WithCachedBlocksByTier(tiers)
+			WithCachedBlocksByTier(tiers).
+			WithTierWeights(tierWeights)
 		if mmTracked {
 			info.WithMM(attrprefix.MMMatchInfo{
 				MatchBlocks: mmMatches[podKey] * scale,

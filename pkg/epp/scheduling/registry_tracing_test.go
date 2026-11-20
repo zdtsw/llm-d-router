@@ -27,8 +27,11 @@ import (
 	"sigs.k8s.io/yaml"
 
 	reqcommon "github.com/llm-d/llm-d-router/pkg/common/request"
+	fwkdl "github.com/llm-d/llm-d-router/pkg/epp/framework/interface/datalayer"
 	fwkplugin "github.com/llm-d/llm-d-router/pkg/epp/framework/interface/plugin"
 	fwksched "github.com/llm-d/llm-d-router/pkg/epp/framework/interface/scheduling"
+	attrprefix "github.com/llm-d/llm-d-router/pkg/epp/framework/plugins/datalayer/attribute/prefix"
+	schedprefix "github.com/llm-d/llm-d-router/pkg/epp/framework/plugins/scheduling/scorer/prefix"
 )
 
 // Exercise the actual scheduling path against the handwritten registry.
@@ -81,9 +84,28 @@ func TestSchedulingSpansMatchRegistry(t *testing.T) {
 		FilterRes: []k8stypes.NamespacedName{{Name: "pod1"}},
 		PickRes:   k8stypes.NamespacedName{Name: "pod1"},
 	}
-	profile := NewSchedulerProfile().WithFilters(plugin).WithPicker(plugin)
-	_, err := runSchedulerProfile(context.Background(), "decode", profile,
-		&fwksched.InferenceRequest{TargetModel: "m1", Headers: map[string]string{reqcommon.RequestIDHeaderKey: "r1"}}, newTestEndpoints("pod1", "pod2"))
+	const producerName = "precise-prefix-cache-producer"
+	selectedAttrs := fwkdl.NewAttributes()
+	selectedAttrs.Put(
+		attrprefix.PrefixCacheMatchInfoDataKey.WithNonEmptyProducerName(producerName),
+		attrprefix.NewPrefixCacheMatchInfo(4, 10, 16).
+			WithCachedBlocksByTier(map[string]int{"gpu": 3, "cpu": 1}).
+			WithTierWeights(map[string]float64{"gpu": 1, "cpu": 0.8}),
+	)
+	endpoints := []fwksched.Endpoint{
+		fwksched.NewEndpoint(&fwkdl.EndpointMetadata{ID: k8stypes.NamespacedName{Name: "pod1"}}, nil, selectedAttrs),
+		fwksched.NewEndpoint(&fwkdl.EndpointMetadata{ID: k8stypes.NamespacedName{Name: "pod2"}}, nil, nil),
+	}
+	prefixScorer, err := schedprefix.New(context.Background(), "", producerName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	profile := NewSchedulerProfile().
+		WithFilters(plugin).
+		WithScorers(NewWeightedScorer(prefixScorer, 0.5)).
+		WithPicker(plugin)
+	_, err = runSchedulerProfile(context.Background(), "decode", profile,
+		&fwksched.InferenceRequest{TargetModel: "m1", Headers: map[string]string{reqcommon.RequestIDHeaderKey: "r1"}}, endpoints)
 	if err != nil {
 		t.Fatal(err)
 	}

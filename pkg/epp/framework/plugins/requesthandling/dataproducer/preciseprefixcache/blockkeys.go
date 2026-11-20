@@ -45,6 +45,7 @@ type kvCacheIndexer interface {
 	CacheFormat(podID string) kvblock.CacheFormat
 	KVBlockIndex() kvblock.Index
 	MatchBlockKeys(ctx context.Context, keys []kvblock.BlockHash, podFilter sets.Set[string]) (map[string]kvcache.PodMatch, error)
+	TierWeight(tier string) float64
 }
 
 // mmPromptContent carries one prompt's multimodal content for match

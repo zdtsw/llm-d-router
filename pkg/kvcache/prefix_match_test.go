@@ -512,6 +512,59 @@ func TestMatchBlockKeysConfiguredTierWeights(t *testing.T) {
 	}
 }
 
+func TestIndexerTierWeight(t *testing.T) {
+	tests := []struct {
+		name     string
+		backends []*kvcache.KVCacheBackendConfig
+		tier     string
+		want     float64
+	}{
+		{
+			name:     "configured tier returns its weight",
+			backends: kvcache.DefaultKVCacheBackendConfig(),
+			tier:     "storage",
+			want:     0.6,
+		},
+		{
+			name:     "backend names are matched in lower case",
+			backends: []*kvcache.KVCacheBackendConfig{{Name: "SHARED_STORAGE", Weight: 0.9}},
+			tier:     "shared_storage",
+			want:     0.9,
+		},
+		{
+			name:     "tier without a configured weight returns zero",
+			backends: kvcache.DefaultKVCacheBackendConfig(),
+			tier:     "tape",
+			want:     0,
+		},
+		{
+			name:     "speculative tier defaults to one",
+			backends: kvcache.DefaultKVCacheBackendConfig(),
+			tier:     kvcache.SpeculativeTier,
+			want:     1,
+		},
+		{
+			name:     "configured speculative weight overrides the default",
+			backends: []*kvcache.KVCacheBackendConfig{{Name: kvcache.SpeculativeTier, Weight: 0.5}},
+			tier:     kvcache.SpeculativeTier,
+			want:     0.5,
+		},
+		{
+			name:     "tail-only tier still returns its configured weight",
+			backends: []*kvcache.KVCacheBackendConfig{{Name: "storage", Weight: 0.6, TailOnly: true}},
+			tier:     "storage",
+			want:     0.6,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			indexer, _ := newMatcher(t, tt.backends)
+			assert.Equal(t, tt.want, indexer.TierWeight(tt.tier))
+		})
+	}
+}
+
 // lateCancelContext reports cancellation from its second poll after enable is
 // called. The matcher polls once at its first checkpoint and once at
 // completion, so the cancellation lands between them, as one arriving

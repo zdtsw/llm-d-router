@@ -122,6 +122,30 @@ func TestLLMDSemanticConventions(t *testing.T) {
 			wantKey:  "llm_d.epp.picker.top_scores",
 			wantType: attribute.FLOAT64SLICE,
 		},
+		{
+			name:     "LLMDEPPPickerSelectedEndpoint",
+			got:      LLMDEPPPickerSelectedEndpoint("/model-server-1"),
+			wantKey:  "llm_d.epp.picker.selected_endpoint",
+			wantType: attribute.STRING,
+		},
+		{
+			name:     "LLMDEPPPickerPrefixCacheTiers",
+			got:      LLMDEPPPickerPrefixCacheTiers([]string{"gpu", "cpu"}),
+			wantKey:  "llm_d.epp.picker.prefix_cache.tiers",
+			wantType: attribute.STRINGSLICE,
+		},
+		{
+			name:     "LLMDEPPPickerPrefixCacheTierCachedBlocks",
+			got:      LLMDEPPPickerPrefixCacheTierCachedBlocks([]float64{3, 1}),
+			wantKey:  "llm_d.epp.picker.prefix_cache.tier.cached_blocks",
+			wantType: attribute.FLOAT64SLICE,
+		},
+		{
+			name:     "LLMDEPPPickerPrefixCacheTierWeights",
+			got:      LLMDEPPPickerPrefixCacheTierWeights([]float64{1, 0.8}),
+			wantKey:  "llm_d.epp.picker.prefix_cache.tier.weights",
+			wantType: attribute.FLOAT64SLICE,
+		},
 
 		// EPP Scorer
 		{

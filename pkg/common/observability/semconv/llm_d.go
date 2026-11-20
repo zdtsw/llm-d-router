@@ -76,6 +76,14 @@ const (
 	LLMDEPPPDReasonKey = attribute.Key("llm_d.epp.pd.reason")
 	// LLMDEPPPickerCandidateEndpointsKey: Candidate endpoints entering the picker.
 	LLMDEPPPickerCandidateEndpointsKey = attribute.Key("llm_d.epp.picker.candidate_endpoints")
+	// LLMDEPPPickerPrefixCacheTierCachedBlocksKey: The selected endpoint's cached blocks per prefix-cache tier.
+	LLMDEPPPickerPrefixCacheTierCachedBlocksKey = attribute.Key("llm_d.epp.picker.prefix_cache.tier.cached_blocks")
+	// LLMDEPPPickerPrefixCacheTierWeightsKey: The scoring weight of each prefix-cache tier, in the same order as the tiers attribute.
+	LLMDEPPPickerPrefixCacheTierWeightsKey = attribute.Key("llm_d.epp.picker.prefix_cache.tier.weights")
+	// LLMDEPPPickerPrefixCacheTiersKey: The prefix-cache tiers that hold cached blocks for the selected endpoint.
+	LLMDEPPPickerPrefixCacheTiersKey = attribute.Key("llm_d.epp.picker.prefix_cache.tiers")
+	// LLMDEPPPickerSelectedEndpointKey: The endpoint selected by the picker.
+	LLMDEPPPickerSelectedEndpointKey = attribute.Key("llm_d.epp.picker.selected_endpoint")
 	// LLMDEPPPickerTopEndpointsKey: The top scored endpoint names.
 	LLMDEPPPickerTopEndpointsKey = attribute.Key("llm_d.epp.picker.top_endpoints")
 	// LLMDEPPPickerTopScoresKey: The top scored endpoint values.
@@ -410,6 +418,26 @@ func LLMDEPPPDReason(value string) attribute.KeyValue {
 // LLMDEPPPickerCandidateEndpoints: Candidate endpoints entering the picker.
 func LLMDEPPPickerCandidateEndpoints(value int) attribute.KeyValue {
 	return LLMDEPPPickerCandidateEndpointsKey.Int(value)
+}
+
+// LLMDEPPPickerPrefixCacheTierCachedBlocks: The selected endpoint's cached blocks per prefix-cache tier.
+func LLMDEPPPickerPrefixCacheTierCachedBlocks(value []float64) attribute.KeyValue {
+	return LLMDEPPPickerPrefixCacheTierCachedBlocksKey.Float64Slice(value)
+}
+
+// LLMDEPPPickerPrefixCacheTierWeights: The scoring weight of each prefix-cache tier, in the same order as the tiers attribute.
+func LLMDEPPPickerPrefixCacheTierWeights(value []float64) attribute.KeyValue {
+	return LLMDEPPPickerPrefixCacheTierWeightsKey.Float64Slice(value)
+}
+
+// LLMDEPPPickerPrefixCacheTiers: The prefix-cache tiers that hold cached blocks for the selected endpoint.
+func LLMDEPPPickerPrefixCacheTiers(value []string) attribute.KeyValue {
+	return LLMDEPPPickerPrefixCacheTiersKey.StringSlice(value)
+}
+
+// LLMDEPPPickerSelectedEndpoint: The endpoint selected by the picker.
+func LLMDEPPPickerSelectedEndpoint(value string) attribute.KeyValue {
+	return LLMDEPPPickerSelectedEndpointKey.String(value)
 }
 
 // LLMDEPPPickerTopEndpoints: The top scored endpoint names.

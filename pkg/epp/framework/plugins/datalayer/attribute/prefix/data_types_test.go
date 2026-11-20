@@ -112,6 +112,30 @@ func TestPrefixCacheMatchInfo_CloneDeepCopiesCachedBlocksByTier(t *testing.T) {
 	assert.Nil(t, nilClone.CachedBlocksByTier())
 }
 
+func TestPrefixCacheMatchInfo_TierWeightsDefaultsToNil(t *testing.T) {
+	assert.Nil(t, NewPrefixCacheMatchInfo(5, 10, 16).TierWeights())
+}
+
+func TestPrefixCacheMatchInfo_WithTierWeights(t *testing.T) {
+	info := NewPrefixCacheMatchInfo(5, 10, 16).WithTierWeights(map[string]float64{"gpu": 1, "storage": 0.6})
+	assert.Equal(t, map[string]float64{"gpu": 1, "storage": 0.6}, info.TierWeights())
+}
+
+func TestPrefixCacheMatchInfo_CloneDeepCopiesTierWeights(t *testing.T) {
+	orig := NewPrefixCacheMatchInfo(5, 10, 16).WithTierWeights(map[string]float64{"gpu": 1, "storage": 0.6})
+	clone, ok := orig.Clone().(*PrefixCacheMatchInfo)
+	require.True(t, ok)
+	assert.Equal(t, orig.TierWeights(), clone.TierWeights())
+
+	// Mutating the clone's map must not affect the original.
+	clone.TierWeights()["gpu"] = 99
+	assert.InDelta(t, 1.0, orig.TierWeights()["gpu"], 0)
+
+	nilClone, ok := NewPrefixCacheMatchInfo(5, 10, 16).Clone().(*PrefixCacheMatchInfo)
+	require.True(t, ok)
+	assert.Nil(t, nilClone.TierWeights())
+}
+
 func TestPrefixCacheMatchInfo_MM(t *testing.T) {
 	tests := []struct {
 		name      string

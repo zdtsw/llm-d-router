@@ -52,7 +52,10 @@ type fakeKVCacheIndexer struct {
 	matchBlockKeys    func(ctx context.Context, keys []kvblock.BlockHash, podFilter sets.Set[string]) (map[string]kvcache.PodMatch, error)
 	index             kvblock.Index
 	cacheFormat       func(string) kvblock.CacheFormat
+	tierWeights       map[string]float64
 }
+
+func (f *fakeKVCacheIndexer) TierWeight(tier string) float64 { return f.tierWeights[tier] }
 
 func (f *fakeKVCacheIndexer) ComputeBlockKeysFromTokens(ctx context.Context, tokens []uint32, model string, extra []*kvblock.BlockExtraFeatures) ([]kvblock.BlockHash, error) {
 	if f.computeFromTokens != nil {
@@ -214,6 +217,38 @@ func TestMatchEndpointBlockKeys_ReusesPodID(t *testing.T) {
 			assert.Equal(t, total, info.TotalBlocks())
 			assert.Equal(t, blockSize, info.BlockSizeTokens())
 		})
+	}
+}
+
+func TestMatchEndpointBlockKeys_TierWeights(t *testing.T) {
+	ctx := utils.NewTestContext(t)
+	endpoints := freshEndpoints()
+	const podA, podB = "pod-a:8080", "pod-b:8080"
+	idx := &fakeKVCacheIndexer{
+		tierWeights: map[string]float64{"gpu": 1, "cpu": 0.8, "storage": 0.6},
+		matchBlockKeys: func(_ context.Context, _ []kvblock.BlockHash, _ sets.Set[string]) (map[string]kvcache.PodMatch, error) {
+			return map[string]kvcache.PodMatch{
+				podA: {WeightedScore: 2, MatchedBlocks: 2, ConfirmedBlocks: 2, BlocksByTier: map[string]int{"gpu": 2}},
+				podB: {WeightedScore: 2.2, MatchedBlocks: 4, ConfirmedBlocks: 4, BlocksByTier: map[string]int{"cpu": 1, "storage": 3}},
+			}, nil
+		},
+	}
+	p := newProducerWithIndexer(ctx, idx)
+	results, err := p.matchEndpointBlockKeys(ctx, trace.SpanFromContext(ctx),
+		tokenizedRequest("tier-weights", 12),
+		[]endpointWithPodID{{endpoint: endpoints[0], podID: podA}, {endpoint: endpoints[1], podID: podB}},
+		[][]kvblock.BlockHash{{1, 2, 3, 4}}, []*mmPromptContent{nil},
+		kvblock.CacheFormat{BlockSize: 4})
+	require.NoError(t, err)
+	require.Len(t, results, 2)
+
+	// Each endpoint carries the weight of every tier it holds blocks in.
+	for i, wantTiers := range [][]string{{"gpu"}, {"cpu", "storage"}} {
+		info := results[i].info
+		for _, tier := range wantTiers {
+			assert.Contains(t, info.CachedBlocksByTier(), tier)
+			assert.InDelta(t, idx.tierWeights[tier], info.TierWeights()[tier], 0, "tier %q on result %d", tier, i)
+		}
 	}
 }
 
